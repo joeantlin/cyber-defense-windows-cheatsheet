@@ -578,10 +578,9 @@
       <span class="chev">▶</span>
       <span class="idx">01</span>
       <span class="title">Windows Commands</span>
-      <span class="count">by category</span>
+      <span class="count">71 commands</span>
     </summary>
     <div class="section-body">
-      <div class="placeholder-note">Skeleton stage — categories below are confirmed, command cards are added one category at a time.</div>
 
       <div class="cat"><span class="cat-label">PowerShell Fundamentals</span><span class="cat-line"></span></div>
 
@@ -1636,14 +1635,37 @@
             <div class="field-body"><p>Lists SMB file shares configured on the machine, including hidden administrative shares — the ones whose name ends in <code>$</code>, like <code>C$</code>.</p></div>
           </div>
           <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
-            <div class="field-body"><p>Auditing what's actually exposed over the network. Every Windows box has <code>C$</code> and <code>ADMIN$</code> by default; domain controllers carry additional default shares on top of those (e.g. <code>SYSVOL</code>) — know the expected baseline so an extra share stands out.</p></div></div>
+            <div class="field-body"><p>Auditing what's actually exposed over the network. Every Windows box has <code>C$</code> and <code>ADMIN$</code> by default; domain controllers carry additional default shares on top of those (e.g. <code>SYSVOL</code>) — know the expected baseline so an extra share stands out. Seeing the share list itself is only step one — what's actually inside it, and who can reach it, matter more than the name of the share.</p></div></div>
           <div class="field"><div class="field-label">Syntax</div>
             <pre class="example"><span class="p">PS&gt;</span> Get-SmbShare</pre></div>
           <div class="field"><div class="field-label">Examples</div>
             <pre class="example"><span class="c"># Every share, including the default hidden ones</span>
-<span class="p">PS&gt;</span> Get-SmbShare</pre></div>
+<span class="p">PS&gt;</span> Get-SmbShare
+
+<span class="c"># Where does each share actually point on disk?</span>
+<span class="p">PS&gt;</span> Get-SmbShare | Select-Object Name, Path
+
+<span class="c"># Who's actually allowed to access a specific share?</span>
+<span class="p">PS&gt;</span> Get-SmbShareAccess -Name "Backups"</pre></div>
+          <div class="field-label" style="margin-top:10px;">What to check once you have the share list</div>
+          <div class="issues-list">
+            <div class="issue">
+              <div class="issue-symptom">What's actually sitting inside the share</div>
+              <div class="issue-row"><span class="issue-label">Look for</span>Sensitive content — credentials, configs, PII — living somewhere network-exposed. Sensitive data in a share is a real risk regardless of how tightly permissions are scoped, since it only takes one misconfiguration or one compromised account to reach it.</div>
+            </div>
+            <div class="issue">
+              <div class="issue-symptom">Who can actually access it — <code>Get-SmbShareAccess</code></div>
+              <div class="issue-row"><span class="issue-label">Look for</span>Access broader than the actual need — "Everyone" with read/write on something only one team should touch is the classic finding. Access should map to who genuinely needs it, checked the same way <a href="#cmd-get-set-acl" class="xref" data-target="cmd-get-set-acl">Get-Acl</a> checks file-level permissions.</div>
+            </div>
+            <div class="issue">
+              <div class="issue-symptom">Whether the share needs to exist at all</div>
+              <div class="issue-row"><span class="issue-label">Look for</span>A share nobody can explain the purpose of. An undocumented, unused share is attack surface for no actual benefit — if nothing legitimately depends on it, removing it outright is safer than just tightening its permissions.</div>
+            </div>
+          </div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p><strong>Port:</strong> TCP 445.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-get-set-acl" class="xref" data-target="cmd-get-set-acl">Get-Acl / Set-Acl</a></div></div>
+            <div class="field-body"><a href="#cmd-get-set-acl" class="xref" data-target="cmd-get-set-acl">Get-Acl / Set-Acl</a>, <a href="#tool-ftp" class="xref" data-target="tool-ftp">FTP Server</a></div></div>
         </div>
       </details>
 
@@ -1662,7 +1684,7 @@
             <pre class="example"><span class="c"># Four pings to confirm reachability</span>
 <span class="p">PS&gt;</span> Test-Connection -TargetName 8.8.8.8 -Count 4</pre></div>
           <div class="field"><div class="field-label">Notes</div>
-            <div class="field-body"><p>cmd.exe's <code>ping</code> still exists and behaves basically the same — this is the PowerShell-native, object-returning version of it.</p></div></div>
+            <div class="field-body"><p>cmd.exe's <code>ping</code> still exists and behaves basically the same — this is the PowerShell-native, object-returning version of it. If pinging <em>into</em> a fresh Windows box fails from elsewhere on the network while outbound pings from the box itself work fine, that's expected — Windows Firewall blocks inbound ICMP echo requests by default. See <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Enable-NetFirewallRule</a> to turn that specific rule on rather than assuming a real connectivity problem.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
             <div class="field-body"><a href="#cmd-get-nettcpconnection" class="xref" data-target="cmd-get-nettcpconnection">Get-NetTCPConnection</a></div></div>
         </div>
@@ -1712,10 +1734,61 @@
         </div>
       </details>
 
+      <details class="cmd" id="cmd-ftp-client">
+        <summary><span class="chev">▶</span><code class="cmdname">ftp</code><span class="cmd-desc">— connect to an FTP server from the command line</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Windows' built-in command-line FTP client, included by default — separate from the <a href="#tool-ftp" class="xref" data-target="tool-ftp">FTP Server</a> role covered in Section 2. Connects to and interacts with any FTP server, not just one running on this box.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Verifying a file share is actually reachable and working from the client side — confirming the server process is running (via <a href="#cmd-get-service" class="xref" data-target="cmd-get-service">Get-Service</a>) only proves it's up, not that it's actually answering requests correctly.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">C:\&gt;</span> ftp &lt;host&gt;</pre></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Connect — opens an interactive session</span>
+<span class="p">C:\&gt;</span> ftp 192.168.1.50
+
+<span class="c"># Common commands once inside that session</span>
+ftp&gt; user anonymous
+ftp&gt; ls
+ftp&gt; get somefile.txt
+ftp&gt; quit</pre></div>
+          <div class="field"><div class="field-label caution">Caution</div>
+            <div class="field-body"><p>Same as the <a href="#tool-ftp" class="xref" data-target="tool-ftp">FTP Server</a> card — plain FTP transmits credentials and data in cleartext. A successful anonymous login isn't necessarily benign, and real credentials shouldn't be typed into an <code>ftp</code> session on a network that isn't trusted.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#tool-ftp" class="xref" data-target="tool-ftp">FTP Server</a></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="cmd-ssh-client">
+        <summary><span class="chev">▶</span><code class="cmdname">ssh</code><span class="cmd-desc">— connect to a remote host over SSH from the command line</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Windows' built-in OpenSSH client, included by default on modern Windows 10/11 and Server releases. A full SSH client for connecting to any SSH server — most often a Linux box in a mixed environment, not something specific to Windows-to-Windows communication.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Reaching a Linux box from a Windows machine without installing anything extra — common in a mixed environment where different boxes run different operating systems and management has to cross that boundary regularly.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">C:\&gt;</span> ssh &lt;user&gt;@&lt;host&gt;</pre></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Open an interactive session on a Linux box</span>
+<span class="p">C:\&gt;</span> ssh user@192.168.1.20
+
+<span class="c"># Run a single remote command without staying in a session</span>
+<span class="p">C:\&gt;</span> ssh user@192.168.1.20 "whoami"</pre></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p>This card covers the client only. If <code>ssh</code> isn't recognized at all on an older build, it can be added with <code>Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0</code> — note the exact capability name, which includes a version suffix and isn't just <code>OpenSSH.Client</code> on its own. Windows can also run an OpenSSH <em>Server</em> to accept inbound SSH connections, but that's a separate, less common setup not covered here.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-enter-pssession" class="xref" data-target="cmd-enter-pssession">Enter-PSSession</a></div></div>
+        </div>
+      </details>
+
       <div class="cat"><span class="cat-label">Firewall</span><span class="cat-line"></span></div>
 
       <details class="cmd" id="cmd-netfirewallrule">
-        <summary><span class="chev">▶</span><code class="cmdname">Get-NetFirewallRule / New-NetFirewallRule</code><span class="cmd-desc">— view or create Windows Firewall rules</span><span class="risk-badge">⚠ risk</span></summary>
+        <summary><span class="chev">▶</span><code class="cmdname">Get-NetFirewallRule / New-NetFirewallRule / Enable-NetFirewallRule</code><span class="cmd-desc">— view, create, or turn on Windows Firewall rules</span><span class="risk-badge">⚠ risk</span></summary>
         <div class="cmd-body">
           <div class="verdict verdict-preferred">
             <span class="verdict-icon">✓</span>
@@ -1723,19 +1796,28 @@
           </div>
           <div class="field" style="margin-top:14px;">
             <div class="field-label">Definition</div>
-            <div class="field-body"><p>Windows Firewall is stateful — it automatically allows return traffic for connections you initiated, so rules only need to cover new inbound and outbound traffic you actually want to allow or block. <code>Get-NetFirewallRule</code> lists existing rules; <code>New-NetFirewallRule</code> creates one.</p></div>
+            <div class="field-body"><p>Windows Firewall is stateful — it automatically allows return traffic for connections you initiated, so rules only need to cover new inbound and outbound traffic you actually want to allow or block. <code>Get-NetFirewallRule</code> lists existing rules; <code>New-NetFirewallRule</code> creates one from scratch. <code>Enable-NetFirewallRule</code> is a distinct third case worth knowing — many rules already exist out of the box but sit disabled, so turning one on is a different action from creating a new one.</p></div>
           </div>
           <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
             <div class="field-body"><p>Locking down what's allowed in and out — allow only the ports your actual services need inbound, and allow outbound only to what the box genuinely depends on.</p></div></div>
           <div class="field"><div class="field-label">Syntax</div>
             <pre class="example"><span class="p">PS&gt;</span> Get-NetFirewallRule
-<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName &lt;string&gt; -Direction &lt;Inbound|Outbound&gt; -Action &lt;Allow|Block&gt; [-LocalPort &lt;int&gt;] [-Program &lt;string&gt;]</pre></div>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName &lt;string&gt; -Direction &lt;Inbound|Outbound&gt; -Action &lt;Allow|Block&gt; [-LocalPort &lt;int&gt;] [-Program &lt;string&gt;]
+<span class="p">PS&gt;</span> Enable-NetFirewallRule -DisplayName &lt;string&gt;</pre></div>
           <div class="field"><div class="field-label">Examples</div>
             <pre class="example"><span class="c"># See every current rule</span>
 <span class="p">PS&gt;</span> Get-NetFirewallRule
 
 <span class="c"># Allow inbound SSH</span>
-<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow SSH" -Direction Inbound -Action Allow -LocalPort 22 -Protocol TCP</pre></div>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow SSH" -Direction Inbound -Action Allow -LocalPort 22 -Protocol TCP
+
+<span class="c"># Allow inbound HTTPS — prefer this over a plain HTTP rule where the choice exists</span>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow HTTPS" -Direction Inbound -Action Allow -LocalPort 443 -Protocol TCP
+
+<span class="c"># Turn on the built-in rule that allows inbound ping — it exists already, just disabled by default</span>
+<span class="p">PS&gt;</span> Enable-NetFirewallRule -DisplayName "File and Printer Sharing (Echo Request - ICMPv4-In)"</pre></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p>Windows blocks inbound ping by default — not because there's no rule for it, but because the built-in rule for it ships disabled. <code>Enable-NetFirewallRule -DisplayGroup "File and Printer Sharing"</code> would also work, but turns on all 14 rules in that group (SMB, NetBIOS, LLMNR included) — far more than ping alone needs. Targeting the exact rule by <code>-DisplayName</code>, as shown above, only opens what was actually asked for.</p></div></div>
           <div class="field"><div class="field-label caution">Caution</div>
             <div class="field-body"><p>A rule that's broader than intended — wrong direction, wrong port, or allowing a whole program instead of a specific port — can open exposure you didn't mean to create. Review the exact scope before applying.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
@@ -1748,7 +1830,7 @@
         <div class="cmd-body">
           <div class="verdict verdict-alternative">
             <span class="verdict-icon">→</span>
-            <div><span class="verdict-label">Legacy — prefer PowerShell</span>Same underlying firewall as <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule</a>, older command shape. Consistent across Windows versions and can be faster to type once you know the shorthand.</div>
+            <div><span class="verdict-label">Legacy — prefer PowerShell</span>Same underlying firewall as <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule / Enable-NetFirewallRule</a>, older command shape. Consistent across Windows versions and can be faster to type once you know the shorthand.</div>
           </div>
           <div class="field" style="margin-top:14px;">
             <div class="field-label">Definition</div>
@@ -1762,7 +1844,13 @@
 <span class="p">C:\&gt;</span> netsh advfirewall firewall show rule name=all
 
 <span class="c"># Allow inbound SSH</span>
-<span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name="ssh" dir=in action=allow protocol=tcp localport=22</pre></div>
+<span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name="ssh" dir=in action=allow protocol=tcp localport=22
+
+<span class="c"># Allow inbound HTTPS — prefer this over a plain HTTP rule where the choice exists</span>
+<span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name="https" dir=in action=allow protocol=tcp localport=443
+
+<span class="c"># Turn on the built-in ping rule — "set", not "add", since the rule already exists</span>
+<span class="p">C:\&gt;</span> netsh advfirewall firewall set rule name="File and Printer Sharing (Echo Request - ICMPv4-In)" new enable=yes</pre></div>
           <div class="field"><div class="field-label caution">Caution</div>
             <div class="field-body"><p>Same risk as the PowerShell cmdlets — an overly broad rule creates exposure. Review scope before applying.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
@@ -1787,7 +1875,7 @@
             <pre class="example"><span class="c"># Turn on PS Remoting without the interactive confirmation prompts</span>
 <span class="p">PS&gt;</span> Enable-PSRemoting -Force</pre></div>
           <div class="field"><div class="field-label caution">Caution</div>
-            <div class="field-body"><p>Expands what can reach this box remotely. Understand the trust boundary (domain membership, admin-only by default) before enabling it on something that shouldn't be remotely managed at all.</p></div></div>
+            <div class="field-body"><p>Two questions worth asking before enabling this, not after: <strong>is remote management actually needed on this box at all</strong> — if not, leave it off rather than turning it on "just in case"; and <strong>who should be able to reach it</strong> — the domain-membership and admin-only defaults are a starting point, not a substitute for actually restricting access to the specific accounts and hosts that need it. Enabling it expands what can reach this box remotely, full stop — that's a deliberate decision, not a default to accept without thinking about it.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
             <div class="field-body"><a href="#cmd-invoke-command" class="xref" data-target="cmd-invoke-command">Invoke-Command</a>, <a href="#cmd-enter-pssession" class="xref" data-target="cmd-enter-pssession">Enter-PSSession</a></div></div>
         </div>
@@ -1829,7 +1917,7 @@
             <pre class="example"><span class="c"># Drop into an interactive session on Server01</span>
 <span class="p">PS&gt;</span> Enter-PSSession -ComputerName Server01</pre></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-invoke-command" class="xref" data-target="cmd-invoke-command">Invoke-Command</a>, <a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a></div></div>
+            <div class="field-body"><a href="#cmd-invoke-command" class="xref" data-target="cmd-invoke-command">Invoke-Command</a>, <a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a>, <a href="#cmd-ssh-client" class="xref" data-target="cmd-ssh-client">ssh</a></div></div>
         </div>
       </details>
 
@@ -1847,8 +1935,41 @@
           <div class="field"><div class="field-label">Examples</div>
             <pre class="example"><span class="c"># Is WinRM even reachable before troubleshooting further?</span>
 <span class="p">PS&gt;</span> Test-WSMan -ComputerName Server01</pre></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p><strong>Port:</strong> TCP 5985 (HTTP) or 5986 (HTTPS). Seeing either listening in <a href="#cmd-get-nettcpconnection" class="xref" data-target="cmd-get-nettcpconnection">Get-NetTCPConnection</a>'s output is what WinRM being reachable actually looks like at the network level.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a>, <a href="#cmd-invoke-command" class="xref" data-target="cmd-invoke-command">Invoke-Command</a></div></div>
+            <div class="field-body"><a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a>, <a href="#cmd-invoke-command" class="xref" data-target="cmd-invoke-command">Invoke-Command</a>, <a href="#cmd-rdp" class="xref" data-target="cmd-rdp">Remote Desktop (RDP)</a></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="cmd-rdp">
+        <summary><span class="chev">▶</span><code class="cmdname">Remote Desktop (RDP)</code><span class="cmd-desc">— check, enable, or disable Remote Desktop access</span><span class="risk-badge">⚠ risk</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Windows' built-in remote desktop protocol — a full graphical remote session, not a command-line one. It's a completely separate mechanism from WinRM/PS Remoting: enabling or disabling one has no effect on the other, and each has its own service and firewall rule to check independently.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Confirming whether RDP is enabled and actually reachable on a box — genuinely separate attack surface from PS Remoting despite both falling under "remote access," and worth checking independently rather than assuming one implies the other.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">PS&gt;</span> Get-Service -Name TermService
+<span class="p">PS&gt;</span> Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections
+<span class="p">PS&gt;</span> Get-NetFirewallRule -DisplayGroup "Remote Desktop" | Select-Object DisplayName, Enabled</pre></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Is the RDP service actually running?</span>
+<span class="p">PS&gt;</span> Get-Service -Name TermService
+
+<span class="c"># Is RDP allowed at the OS level? (0 = allowed, 1 = blocked)</span>
+<span class="p">PS&gt;</span> Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections
+
+<span class="c"># Is the firewall actually letting the traffic through too?</span>
+<span class="p">PS&gt;</span> Get-NetFirewallRule -DisplayGroup "Remote Desktop" | Select-Object DisplayName, Enabled</pre></div>
+          <div class="field"><div class="field-label caution">Caution</div>
+            <div class="field-body"><p>Enabling RDP expands what can reach this box remotely, same as <a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a> — is it actually needed, and who should be able to reach it, are worth asking before turning it on rather than after.</p></div></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p><strong>Port:</strong> TCP 3389. Enabling RDP itself uses the same <code>fDenyTSConnections</code> registry value already shown as an example under <a href="#cmd-set-itemproperty" class="xref" data-target="cmd-set-itemproperty">Set-ItemProperty</a> — set it to <code>0</code> to allow, <code>1</code> to block. This card covers the CLI-checkable side of RDP: status, the OS-level toggle, and the firewall rule. <strong>GUI-preferred:</strong> once connected, RDP itself is an inherently graphical remote session with no CLI equivalent. Session use, IIS Manager, Server Manager, and similar GUI-driven tools are deliberately out of scope for this CLI-only doc — candidates for a future GUI-focused companion guide.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a>, <a href="#cmd-set-itemproperty" class="xref" data-target="cmd-set-itemproperty">Set-ItemProperty</a>, <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule</a></div></div>
         </div>
       </details>
 
@@ -2069,7 +2190,7 @@
 <span class="c"># Install a specific package by its ID</span>
 <span class="p">PS&gt;</span> winget install Git.Git</pre></div>
           <div class="field"><div class="field-label">Notes</div>
-            <div class="field-body"><p>Not present by default on every older build or Server edition — it ships with modern Windows 10/11 and newer Server releases via the App Installer package.</p></div></div>
+            <div class="field-body"><p>Not present by default on every older build or Server edition — it ships with modern Windows 10/11 and newer Server releases via the App Installer package. <strong>GUI-preferred:</strong> not every publisher's software is in the winget repository — plenty of installers (MySQL Installer among them) remain GUI-only wizards with no CLI-native path at all. Check <code>winget search &lt;name&gt;</code> first; if nothing turns up, the GUI installer is the real fallback, not a workaround.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
             <div class="field-body"><a href="#cmd-get-windowsfeature" class="xref" data-target="cmd-get-windowsfeature">Get-WindowsFeature</a></div></div>
         </div>
@@ -2099,7 +2220,7 @@
           <div class="field"><div class="field-label caution">Caution</div>
             <div class="field-body"><p>A recovery operation overwrites current state with the backed-up version — confirm the target and version are correct before starting one. Not something to run experimentally on a system you can't afford to roll back.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-vssadmin" class="xref" data-target="cmd-vssadmin">vssadmin</a>, <a href="#cmd-robocopy" class="xref" data-target="cmd-robocopy">robocopy</a></div></div>
+            <div class="field-body"><a href="#cmd-vssadmin" class="xref" data-target="cmd-vssadmin">vssadmin</a>, <a href="#cmd-robocopy" class="xref" data-target="cmd-robocopy">robocopy</a>, <a href="#cmd-mysqldump" class="xref" data-target="cmd-mysqldump">mysqldump</a></div></div>
         </div>
       </details>
 
@@ -2158,6 +2279,95 @@
             <div class="field-body"><p><code>/MIR</code> deletes destination files that don't exist in the source — if the source and destination are ever reversed by mistake, this silently wipes out data instead of backing it up. Double-check the direction before running it, especially in a script.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
             <div class="field-body"><a href="#cmd-copy-item" class="xref" data-target="cmd-copy-item">Copy-Item</a>, <a href="#cmd-wbadmin" class="xref" data-target="cmd-wbadmin">wbadmin</a></div></div>
+        </div>
+      </details>
+
+      <div class="cat"><span class="cat-label">Databases</span><span class="cat-line"></span></div>
+
+      <details class="cmd" id="cmd-mysql">
+        <summary><span class="chev">▶</span><code class="cmdname">mysql</code><span class="cmd-desc">— command-line client for a MySQL server</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Connects to a MySQL server and runs SQL commands against it — separate from actually installing and running the server itself. This is the tool for working with the data once the server is already up.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Standing up or verifying a lab/competition database — creating schemas, checking what data exists, confirming a service that depends on the database actually has what it expects.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">C:\&gt;</span> mysql -u &lt;user&gt; -p</pre></div>
+          <div class="field"><div class="field-label">Relevant Options</div>
+            <table class="opts">
+              <tr><th>Flag</th><th>What it does</th></tr>
+              <tr><td>-u user</td><td>Connect as a specific user</td></tr>
+              <tr><td>-p</td><td>Prompt for that user's password</td></tr>
+              <tr><td>-e "query"</td><td>Run a single query and exit — no interactive session</td></tr>
+              <tr><td>&lt; file.sql</td><td>Feed an entire script in from a file, non-interactively</td></tr>
+            </table></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Interactive session as root</span>
+<span class="p">C:\&gt;</span> mysql -u root -p
+
+<span class="c"># One quick query, no interactive session needed</span>
+<span class="p">C:\&gt;</span> mysql -u root -p -e "SHOW DATABASES;"
+
+<span class="c"># Run an entire .sql script non-interactively</span>
+<span class="p">C:\&gt;</span> mysql -u root -p &lt; setup.sql</pre></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p><strong>Port:</strong> TCP 3306. <strong>GUI-preferred:</strong> unlike installing IIS, installing MySQL Server itself doesn't have a clean, idiomatic command-line path on Windows the way <a href="#cmd-install-windowsfeature" class="xref" data-target="cmd-install-windowsfeature">Install-WindowsFeature</a> does — the standard method genuinely is the MySQL Installer GUI wizard. This card and the rest of this category assume that install already happened; everything from here on (connecting, querying, managing users, backups) is genuinely CLI-native, which is where the real value of this category is.</p></div></div>
+          <div class="field"><div class="field-label caution">Caution</div>
+            <div class="field-body"><p>Running an unfamiliar <code>.sql</code> script executes arbitrary SQL against the database, the same way running an unfamiliar shell script executes arbitrary commands — review what's in it first, especially anything pulled from outside the team.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-mysql-users" class="xref" data-target="cmd-mysql-users">CREATE USER / GRANT</a>, <a href="#cmd-mysqldump" class="xref" data-target="cmd-mysqldump">mysqldump</a></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="cmd-mysql-users">
+        <summary><span class="chev">▶</span><code class="cmdname">CREATE USER / GRANT</code><span class="cmd-desc">— manage database users and privileges</span><span class="risk-badge">⚠ risk</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>SQL statements (run inside an active <a href="#cmd-mysql" class="xref" data-target="cmd-mysql">mysql</a> session) for creating a database account and controlling exactly what it's allowed to do.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>The database-side version of the same question asked about file shares and web logins: what should be able to access this data, and with what privileges. A web application's database account should almost never have the same privileges as the account used to administer the database itself.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example">CREATE USER '&lt;username&gt;'@'&lt;host&gt;' IDENTIFIED BY '&lt;password&gt;';
+GRANT &lt;privileges&gt; ON &lt;database&gt;.&lt;table&gt; TO '&lt;username&gt;'@'&lt;host&gt;';</pre></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c">-- A web app account, scoped to only what it needs</span>
+CREATE USER 'webapp'@'localhost' IDENTIFIED BY 'REPLACE_ME';
+GRANT SELECT, INSERT, UPDATE ON app_db.* TO 'webapp'@'localhost';
+
+<span class="c">-- Confirm what a given account is actually allowed to do</span>
+SHOW GRANTS FOR 'webapp'@'localhost';</pre></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p>The <code>@'&lt;host&gt;'</code> part matters — <code>'user'@'localhost'</code> and <code>'user'@'%'</code> (any host) are different accounts entirely, even with the same username. A remotely-reachable account is a meaningfully different exposure than one restricted to local connections only. <code>CREATE USER</code> and <code>GRANT</code> both take effect immediately — <code>FLUSH PRIVILEGES</code> isn't actually required after them, despite showing up in a lot of tutorials out of habit. It's genuinely only needed after someone edits the underlying grant tables directly by hand, which normal account management never does.</p></div></div>
+          <div class="field"><div class="field-label caution">Caution</div>
+            <div class="field-body"><p><code>GRANT ALL PRIVILEGES</code> is tempting as a shortcut but hands out far more than almost any application account actually needs — scope grants to the specific privileges (<code>SELECT</code>, <code>INSERT</code>, <code>UPDATE</code>) and the specific database the account actually touches.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-mysql" class="xref" data-target="cmd-mysql">mysql</a></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="cmd-mysqldump">
+        <summary><span class="chev">▶</span><code class="cmdname">mysqldump</code><span class="cmd-desc">— back up a MySQL database</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Exports a database (or all of them) to a plain SQL file — a script that recreates the schema and data if run back through <a href="#cmd-mysql" class="xref" data-target="cmd-mysql">mysql</a> later.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>The database-specific piece of the same backup discipline covered in the Backups &amp; Recovery category — take one before a risky change, and confirm a restore actually works before it's ever needed for real.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">C:\&gt;</span> mysqldump -u &lt;user&gt; -p &lt;database&gt; &gt; backup.sql</pre></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Back up one database to a file</span>
+<span class="p">C:\&gt;</span> mysqldump -u root -p app_db &gt; app_db_backup.sql
+
+<span class="c"># Restore it later by feeding the file back through the client</span>
+<span class="p">C:\&gt;</span> mysql -u root -p app_db &lt; app_db_backup.sql</pre></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-mysql" class="xref" data-target="cmd-mysql">mysql</a>, <a href="#cmd-wbadmin" class="xref" data-target="cmd-wbadmin">wbadmin</a></div></div>
         </div>
       </details>
 
@@ -2236,7 +2446,7 @@
       <span class="chev">▶</span>
       <span class="idx">02</span>
       <span class="title">Programs &amp; Tools</span>
-      <span class="count">4 tools</span>
+      <span class="count">5 tools</span>
     </summary>
     <div class="section-body">
 
@@ -2300,10 +2510,32 @@
             <pre class="example"><span class="c"># What sites are actually configured right now?</span>
 <span class="p">PS&gt;</span> Get-Website
 
+<span class="c"># Create an HTTPS binding — this only creates the binding itself, no certificate attached yet</span>
+<span class="p">PS&gt;</span> New-WebBinding -Name &lt;string&gt; -Protocol https -Port 443
+
+<span class="c"># Attach an already-installed certificate to that binding — a separate step</span>
+<span class="p">PS&gt;</span> $cert = Get-ChildItem Cert:\LocalMachine\My | Where-Object Thumbprint -eq &lt;thumbprint&gt;
+<span class="p">PS&gt;</span> (Get-WebBinding -Name &lt;string&gt; -Protocol https).AddSslCertificate($cert.Thumbprint, "My")
+
 <span class="c"># Restart IIS entirely after a config change</span>
 <span class="p">C:\&gt;</span> iisreset</pre></div>
+          <div class="field-label" style="margin-top:10px;">What actually makes a site risky — check these once it's running</div>
+          <div class="issues-list">
+            <div class="issue">
+              <div class="issue-symptom">The site accepts file uploads</div>
+              <div class="issue-row"><span class="issue-label">Risk</span>File upload functionality is one of the most reliable paths to a web shell — an attacker uploads a malicious script disguised as an allowed file type, then browses to it directly to get code execution on the box.</div>
+            </div>
+            <div class="issue">
+              <div class="issue-symptom">The site requires a login</div>
+              <div class="issue-row"><span class="issue-label">Risk</span>Anywhere user input reaches a database opens the door to SQL injection. It's also worth confirming how those accounts are actually managed — a site backed by LDAP/Active Directory carries different exposure than one with its own separate local user table.</div>
+            </div>
+            <div class="issue">
+              <div class="issue-symptom">What port the site is actually running on</div>
+              <div class="issue-row"><span class="issue-label">Risk</span>Confirm it matches an intentional <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">firewall rule</a>, not just whatever the default happened to be — an unscoped or forgotten rule is exposure nobody meant to create.</div>
+            </div>
+          </div>
           <div class="field"><div class="field-label">Notes</div>
-            <div class="field-body"><p>The IIS role itself is installed with <a href="#cmd-install-windowsfeature" class="xref" data-target="cmd-install-windowsfeature">Install-WindowsFeature -Name Web-Server</a>, covered in Section 1. The website-management cmdlets here (<code>Get-Website</code>, <code>New-Website</code>, etc.) only become available once that role is actually installed.</p></div></div>
+            <div class="field-body"><p><strong>Port:</strong> TCP 80 (HTTP) / 443 (HTTPS). The IIS role itself is installed with <a href="#cmd-install-windowsfeature" class="xref" data-target="cmd-install-windowsfeature">Install-WindowsFeature -Name Web-Server</a>, covered in Section 1. The website-management cmdlets here (<code>Get-Website</code>, <code>New-Website</code>, etc.) only become available once that role is actually installed. <strong>HTTPS needs a certificate attached separately</strong> — <code>New-WebBinding</code> only creates the binding shell; it has no parameter for supplying a certificate. Attaching one is a distinct second step via <code>AddSslCertificate()</code> (shown above) or, from cmd.exe, <code>netsh http add sslcert</code>. Full certificate management — requesting, installing, and trusting one in the first place — is its own topic well beyond what these commands cover; the example above assumes a valid certificate is already installed and its thumbprint is known.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
             <div class="field-body"><a href="#cmd-install-windowsfeature" class="xref" data-target="cmd-install-windowsfeature">Install-WindowsFeature</a></div></div>
         </div>
@@ -2319,7 +2551,34 @@
           <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
             <div class="field-body"><p>Recognizing it on a box explains a lot at once — expect an Apache-based site rather than IIS, a MySQL database instead of anything Windows-native, and possibly an FTP service running that wouldn't otherwise be there.</p></div></div>
           <div class="field"><div class="field-label">Notes</div>
-            <div class="field-body"><p>A content management system (WordPress, OpenCart, Drupal, MediaWiki, and similar) is often built on top of a stack like this — the same setup pattern every time: application files in the webroot, a database configured to match, and credentials wired into the application's own config file. Apache and MySQL themselves aren't covered here — their command-line administration lives in the companion Linux Field Guide, not this doc.</p></div></div>
+            <div class="field-body"><p>A content management system (WordPress, OpenCart, Drupal, MediaWiki, and similar) is often built on top of a stack like this — the same setup pattern every time: application files in the webroot, a database configured to match, and credentials wired into the application's own config file. <strong>Default webroot:</strong> <code>C:\xampp\htdocs</code> — anything placed there is what Apache actually serves. Apache and MySQL themselves aren't covered here — their command-line administration lives in the companion Linux Field Guide, not this doc. <strong>Checking whether XAMPP is actually running works differently than most services in this doc:</strong> by default, XAMPP launches Apache and MySQL as plain processes from its own Control Panel, not as registered Windows services — <a href="#cmd-get-service" class="xref" data-target="cmd-get-service">Get-Service</a> will show nothing unless someone explicitly registered them as services through that Control Panel first. <a href="#cmd-get-process" class="xref" data-target="cmd-get-process">Get-Process -Name httpd, mysqld</a> is the reliable check regardless of which mode it's running in.</p></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="tool-ftp">
+        <summary><span class="chev">▶</span><code class="cmdname">FTP Server</code><span class="cmd-desc">— Windows' built-in FTP file-transfer service</span><span class="risk-badge">⚠ risk</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Windows' built-in FTP server, installed as part of the same Web Server role family as <a href="#tool-iis" class="xref" data-target="tool-iis">IIS</a> but functionally separate from it — a different protocol, a different port, and a different service. Handles file transfer over FTP, distinct from the SMB shares covered by <a href="#cmd-get-smbshare" class="xref" data-target="cmd-get-smbshare">Get-SmbShare</a>.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Standing up or auditing a legacy file-transfer service — a genuinely different exposure than an SMB share, with its own listening port and its own "does this actually need to be running" question.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">PS&gt;</span> Install-WindowsFeature -Name Web-Ftp-Server
+<span class="p">PS&gt;</span> Get-Service -Name ftpsvc</pre></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Install the FTP Server role</span>
+<span class="p">PS&gt;</span> Install-WindowsFeature -Name Web-Ftp-Server
+
+<span class="c"># Is it actually running?</span>
+<span class="p">PS&gt;</span> Get-Service -Name ftpsvc</pre></div>
+          <div class="field"><div class="field-label caution">Caution</div>
+            <div class="field-body"><p>FTP transmits credentials and data in cleartext by default, with no encryption unless FTPS is explicitly configured on top. Treat plain FTP the same way as any other unencrypted credential path — prefer SMB with proper access controls, or FTPS specifically, where the choice actually exists.</p></div></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p><strong>Port:</strong> TCP 21. Installing the role gets the service running. <strong>GUI-preferred:</strong> real site configuration — creating an FTP site, setting its physical path, choosing anonymous vs. basic authentication — is normally done through IIS Manager's GUI, not the command line. A CLI path exists via <code>appcmd.exe</code> or the IIS PowerShell provider, but it's meaningfully more involved than the install step shown here, and deliberately out of scope for this CLI-only doc — a candidate for a future GUI-focused companion guide, alongside RDP session use and other tools noted the same way throughout this doc.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-get-smbshare" class="xref" data-target="cmd-get-smbshare">Get-SmbShare</a>, <a href="#cmd-install-windowsfeature" class="xref" data-target="cmd-install-windowsfeature">Install-WindowsFeature</a>, <a href="#cmd-ftp-client" class="xref" data-target="cmd-ftp-client">ftp</a></div></div>
         </div>
       </details>
 
@@ -2332,7 +2591,7 @@
       <span class="chev">▶</span>
       <span class="idx">03</span>
       <span class="title">Quick Start &amp; Routine Checks</span>
-      <span class="count">6 tracks</span>
+      <span class="count">7 tracks</span>
     </summary>
     <div class="section-body">
       <div class="field-body" style="font-size:12.5px;color:var(--text-dim);margin-bottom:4px;">
@@ -2430,7 +2689,7 @@
           <span class="track-sub">read-only, repeatable</span>
         </summary>
         <div class="track-body">
-          <div class="track-intro">Look and understand before you touch anything. Nothing in this track changes the system. Unlike Track A, this one is meant to be repeated — rerun periodically, not just once.</div>
+          <div class="track-intro">Look and understand before you touch anything. Nothing in this track changes the system. Unlike Track A, this one is meant to be repeated — rerun periodically, not just once. The same categories below double as a troubleshooting order when something's actually broken, not just being audited: check service status first, then network reachability, then logs for what actually happened, then authentication (a changed password, an expired credential) last — in that order, since chasing network connectivity on a service that's simply stopped wastes time on the wrong layer.</div>
           <ol class="checklist">
             <li>
               <div class="step-title">Audit local users and groups</div>
@@ -2508,8 +2767,16 @@
           <div class="track-intro">Building or changing Windows Firewall rules — moves past just seeing what's already there. See <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule</a> and <a href="#tool-windows-firewall" class="xref" data-target="tool-windows-firewall">Windows Firewall</a> for the full reference.</div>
           <ol class="checklist">
             <li>
-              <div class="step-title">Define what actually needs to be reachable</div>
-              <div class="step-body">List the management access this box needs (e.g. RDP, WinRM) and the service ports it legitimately serves, before writing a single rule.</div>
+              <div class="step-title">Define what actually needs to be reachable — and just as important, what doesn't</div>
+              <div class="step-body">List the management access this box needs (e.g. RDP, WinRM) and the service ports it legitimately serves, before writing a single rule. For everything else running on the box, the real question isn't "should I firewall it" — it's "does this need to run at all."</div>
+              <div class="field-label" style="margin-top:10px;">A real example of that decision</div>
+              <div class="issues-list">
+                <div class="issue">
+                  <div class="issue-symptom">SSH is running, but only a website and file share are actually scored</div>
+                  <div class="issue-row"><span class="issue-label">Worth checking first</span>Does the file share actually depend on SSH-based file transfer (SFTP) before touching anything — killing SSH could break the very thing being scored</div>
+                  <div class="issue-row"><span class="issue-label">If it's confirmed unrelated</span>Disabling the service outright (<a href="#cmd-manage-service" class="xref" data-target="cmd-manage-service">Stop-Service</a> + <code>-StartupType Disabled</code>) closes it for good — a firewall rule alone leaves the service itself still running and reachable from anywhere the rule doesn't cover</div>
+                </div>
+              </div>
             </li>
             <li>
               <div class="step-title">Confirm which firewall profile is actually active</div>
@@ -2707,6 +2974,62 @@
           </ol>
         </div>
       </details>
+
+      <details class="track">
+        <summary>
+          <span class="chev">▶</span>
+          <span class="track-letter">G</span>
+          <span class="track-title">Database Setup (MySQL)</span>
+          <span class="track-sub">changes the system</span>
+        </summary>
+        <div class="track-body">
+          <div class="track-intro"><strong>GUI-preferred:</strong> assumes MySQL Server is already installed via the MySQL Installer GUI — that part isn't CLI-native on Windows, unlike most of the rest of this doc. See <a href="#cmd-mysql" class="xref" data-target="cmd-mysql">mysql</a> for the full client reference.</div>
+          <ol class="checklist">
+            <li>
+              <div class="step-title">Confirm the service is actually running</div>
+              <div class="step-body">The Windows service name is typically <code>MySQL80</code> (or similar, versioned) — confirm the exact name if this doesn't return anything.</div>
+              <pre class="example"><span class="p">PS&gt;</span> Get-Service -Name MySQL80</pre>
+            </li>
+            <li>
+              <div class="step-title">Log in and set up a database</div>
+              <div class="step-body">The block below is the actual SQL to run once connected: make a database, switch into it, create a table, add a few rows.</div>
+              <pre class="example"><span class="p">C:\&gt;</span> mysql -u root -p</pre>
+              <pre class="example">CREATE DATABASE &lt;dbname&gt;;
+USE &lt;dbname&gt;;
+CREATE TABLE &lt;tablename&gt; (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    &lt;column1&gt; VARCHAR(50),
+    &lt;column2&gt; VARCHAR(50)
+);
+INSERT INTO &lt;tablename&gt; (&lt;column1&gt;, &lt;column2&gt;)
+VALUES ('&lt;value1&gt;', '&lt;value2&gt;'), ('&lt;value3&gt;', '&lt;value4&gt;');</pre>
+            </li>
+            <li>
+              <div class="step-title">Verify the data and structure</div>
+              <div class="step-body">Still inside the same session. Confirm the rows are actually there, and that the table/columns look right.</div>
+              <pre class="example">SELECT * FROM &lt;tablename&gt;;
+SHOW TABLES;
+DESCRIBE &lt;tablename&gt;;</pre>
+            </li>
+            <li>
+              <div class="step-title">Create a scoped account for anything that will connect to this database</div>
+              <div class="step-body">Not the root account — see <a href="#cmd-mysql-users" class="xref" data-target="cmd-mysql-users">CREATE USER / GRANT</a> for the full reference and the reasoning behind scoping privileges tightly.</div>
+              <pre class="example">CREATE USER 'webapp'@'localhost' IDENTIFIED BY 'REPLACE_ME';
+GRANT SELECT, INSERT, UPDATE ON &lt;dbname&gt;.* TO 'webapp'@'localhost';</pre>
+            </li>
+            <li>
+              <div class="step-title">Exit when finished</div>
+              <div class="step-body">Returns to the regular shell.</div>
+              <pre class="example">EXIT;</pre>
+            </li>
+            <li>
+              <div class="step-title">Take a backup once the setup is confirmed working</div>
+              <div class="step-body">Same discipline as any other backup in this doc — take it once things are in a known-good state, not only after something's already gone wrong. See <a href="#cmd-mysqldump" class="xref" data-target="cmd-mysqldump">mysqldump</a>.</div>
+              <pre class="example"><span class="p">C:\&gt;</span> mysqldump -u root -p &lt;dbname&gt; &gt; &lt;dbname&gt;_backup.sql</pre>
+            </li>
+          </ol>
+        </div>
+      </details>
     </div>
   </details>
 
@@ -2719,7 +3042,6 @@
       <span class="count">concepts &amp; context</span>
     </summary>
     <div class="section-body">
-      <div class="placeholder-note">Terms confirmed for this section — definitions are written in once the section is built.</div>
       <dl class="glossary">
         <div class="glossary-item"><dt>PowerShell Object Pipeline</dt><dd>Everything that moves through a PowerShell pipeline is a real object — not plain text the way it is in cmd.exe or a Unix shell. When one cmdlet's output feeds into another via <code>|</code>, what actually gets passed along are structured objects with real properties, not lines of text that need to be parsed apart. This is why <code>Get-Process | Sort-Object CPU</code> works directly with no text-parsing involved, and it's the whole reason <a href="#cmd-get-member" class="xref" data-target="cmd-get-member">Get-Member</a> exists — it shows exactly which properties an object actually carries before you try to filter or sort on one.</dd></div>
         <div class="glossary-item"><dt>Execution Policy</dt><dd>A safeguard controlling whether PowerShell scripts (<code>.ps1</code> files) are allowed to run, and under what conditions. It's not a security boundary the way a firewall is — closer to a guardrail against accidentally running a malicious script than an actual barrier against a determined attacker. Common levels: <strong>Restricted</strong> (the client-edition default — no scripts run at all), <strong>RemoteSigned</strong> (local scripts run freely, anything downloaded needs a valid digital signature), and <strong>Unrestricted</strong> (everything runs, signed or not). Check the current setting with <code>Get-ExecutionPolicy</code>, change it with <code>Set-ExecutionPolicy</code>. Worth remembering it's trivially bypassed by anyone with local access (<code>powershell.exe -ExecutionPolicy Bypass</code>) — treat it as a tripwire against accidents, never as real access control.</dd></div>
@@ -2738,6 +3060,8 @@
         <div class="glossary-item"><dt>User Account Control (UAC)</dt><dd>The prompt asking to confirm an action that requires administrator privileges, even while already logged in as an administrator. The point isn't adding a password step to every admin action — an administrator's account token is deliberately split into a standard-privilege half used for everyday work and a full-privilege half only invoked when something specifically requires elevation, which is exactly what the prompt triggers. This limits the blast radius of anything running under that account day-to-day: a compromised process without an explicit elevation prompt doesn't automatically inherit full admin rights just because the logged-in user has them available. Controlled through the registry — see the <code>EnableLUA</code> example under <a href="#cmd-set-itemproperty" class="xref" data-target="cmd-set-itemproperty">Set-ItemProperty</a>.</dd></div>
         <div class="glossary-item"><dt>Service Display Name vs. Service Name</dt><dd>Every Windows service has two names: a human-readable <strong>Display Name</strong> ("World Wide Web Publishing Service") and a short, internal <strong>Service Name</strong> that most command-line tools actually expect (<code>W3SVC</code>). <a href="#cmd-get-service" class="xref" data-target="cmd-get-service">Get-Service</a>'s <code>-Name</code> parameter wants the short service name, not the display name — use <code>-DisplayName</code> instead if that's what's on hand. This trips people up constantly, especially with services whose short name has no obvious relationship to the display name at all — <code>W3SVC</code> for IIS being a good example. Worth confirming the actual mapping through <a href="#cmd-get-service" class="xref" data-target="cmd-get-service">Get-Service</a> rather than guessing at it.</dd></div>
         <div class="glossary-item"><dt>Roles &amp; Features</dt><dd>Windows Server's two categories of optional, install-on-demand functionality. A <strong>Role</strong> is a major function the server is built to provide — IIS as a web server, AD DS to act as a domain controller, DNS Server. A <strong>Feature</strong> is smaller and more supporting in nature, sometimes standalone and sometimes required by a specific role. Neither is present out of the box; both get installed with <a href="#cmd-install-windowsfeature" class="xref" data-target="cmd-install-windowsfeature">Install-WindowsFeature</a> and reviewed with <a href="#cmd-get-windowsfeature" class="xref" data-target="cmd-get-windowsfeature">Get-WindowsFeature</a> — both of which only exist on Server editions in the first place, since a Client edition doesn't have the Roles &amp; Features concept at all. An unexpected installed role is one of the clearest signs a box has been altered from its intended purpose.</dd></div>
+        <div class="glossary-item"><dt>Host Services vs. Business Services</dt><dd>Two different ways to think about the word "service," worth distinguishing since they don't always overlap 1:1. A <strong>Host Service</strong> is a background process running on a machine — anything <a href="#cmd-get-service" class="xref" data-target="cmd-get-service">Get-Service</a> can show, whether or not anyone outside the box actually cares whether it's running. A <strong>Business Service</strong> is the actual functionality being delivered — a public-facing website, an internal file share — regardless of how many host services combine underneath to make it work. A box can run a dozen host services while only one or two actually back a business service that matters. This is exactly what deciding whether "the juice is worth the squeeze" depends on — see Track C's SSH/FTP example — since hardening or troubleshooting a host service nobody relies on is wasted effort next to the business service that's actually depended on.</dd></div>
+        <div class="glossary-item"><dt>Threat Modeling &amp; Prioritization</dt><dd>A structured way to reason about whether and how to secure a service, rather than reacting to each one ad hoc. Three questions, worked through in order: <strong>Functionality</strong> — what role does this service play in the business, and how does it actually work from a technical standpoint? <strong>Attacks</strong> — what would actually impact that role (denial of service, defacement, command execution, information exposure), and what does an attacker genuinely need to pull it off (network access, authentication, a specific misconfiguration)? <strong>Mitigations</strong> — is there a configuration change or patch that removes what the attack requires, and can the impact be isolated even where it can't be fully prevented? Paired with a cost/benefit lens worth applying throughout: the goal is the most impact for the least effort under real time pressure, not a theoretically perfect defense of everything at once. See <strong>Incident Response Ordering</strong> for the same discipline applied after something's already gone wrong, rather than before.</dd></div>
         <div class="glossary-item"><dt>Incident Response Ordering</dt><dd>A general priority order worth internalizing rather than following as a rigid checklist — real incidents rarely go cleanly in sequence, but the underlying priority stays consistent. <strong>Contain first:</strong> cutting off active unauthorized access matters more than fully understanding it in the moment — see Track C/D for isolating a box at the firewall or network level, or <a href="#cmd-stop-process" class="xref" data-target="cmd-stop-process">Stop-Process</a>/<a href="#cmd-taskkill" class="xref" data-target="cmd-taskkill">taskkill</a> to kill an active malicious process outright. <strong>Preserve evidence next</strong>, before cleaning anything up — hash a suspicious file with <a href="#cmd-get-filehash" class="xref" data-target="cmd-get-filehash">Get-FileHash</a> and check its signature with <a href="#cmd-get-authenticodesignature" class="xref" data-target="cmd-get-authenticodesignature">Get-AuthenticodeSignature</a> before deleting or moving it — evidence gone is gone for good. <strong>Remove persistence third</strong> — check Scheduled Tasks, Services, and registry Run keys (<a href="#cmd-get-scheduledtask" class="xref" data-target="cmd-get-scheduledtask">Get-ScheduledTask</a>, <a href="#cmd-get-service" class="xref" data-target="cmd-get-service">Get-Service</a>, <a href="#cmd-get-itemproperty" class="xref" data-target="cmd-get-itemproperty">Get-ItemProperty</a>) for whatever's letting access survive a reboot, and clear it out. <strong>Patch the actual vector fourth</strong> — the specific misconfiguration, missing patch, or exposed credential that allowed entry in the first place; removing an attacker's foothold without fixing how they got in just invites a repeat. <strong>Document throughout</strong>, not only at the end — <a href="#cmd-export-csv" class="xref" data-target="cmd-export-csv">Export-Csv</a> turns any of the above into something that can actually be handed off or reported on. The instinct to jump straight to cleanup is natural, and usually wrong — evidence and containment come first, or there's nothing left to learn from once it's over.</dd></div>
         <div class="glossary-item"><dt>Common Issues</dt>
         <dd>
