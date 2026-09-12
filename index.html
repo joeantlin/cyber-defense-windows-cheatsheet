@@ -1679,14 +1679,63 @@
           <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
             <div class="field-body"><p>Confirming basic reachability before troubleshooting further, or confirming a firewall rule change actually took effect by testing before and after.</p></div></div>
           <div class="field"><div class="field-label">Syntax</div>
-            <pre class="example"><span class="p">PS&gt;</span> Test-Connection -TargetName &lt;string&gt; [-Count &lt;int&gt;]</pre></div>
+            <pre class="example"><span class="p">PS&gt;</span> Test-Connection -ComputerName &lt;string&gt; [-Count &lt;int&gt;] [-Quiet]</pre></div>
+          <div class="field"><div class="field-label">Relevant Options</div>
+            <table class="opts">
+              <tr><th>Parameter</th><th>What it does</th></tr>
+              <tr><td>-ComputerName</td><td>The host to test — hostname or IP. Works in the box-default Windows PowerShell 5.1</td></tr>
+              <tr><td>-Count</td><td>How many pings to send — defaults to 4 if omitted</td></tr>
+              <tr><td>-Quiet</td><td>Returns a plain <code>$true</code>/<code>$false</code> instead of full ping details — useful for scripting a simple up/down check</td></tr>
+            </table></div>
           <div class="field"><div class="field-label">Examples</div>
             <pre class="example"><span class="c"># Four pings to confirm reachability</span>
-<span class="p">PS&gt;</span> Test-Connection -TargetName 8.8.8.8 -Count 4</pre></div>
+<span class="p">PS&gt;</span> Test-Connection -ComputerName 8.8.8.8 -Count 4
+
+<span class="c"># Just need a yes/no answer, not the full ping detail</span>
+<span class="p">PS&gt;</span> Test-Connection -ComputerName 8.8.8.8 -Quiet</pre></div>
           <div class="field"><div class="field-label">Notes</div>
-            <div class="field-body"><p>cmd.exe's <code>ping</code> still exists and behaves basically the same — this is the PowerShell-native, object-returning version of it. If pinging <em>into</em> a fresh Windows box fails from elsewhere on the network while outbound pings from the box itself work fine, that's expected — Windows Firewall blocks inbound ICMP echo requests by default. See <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Enable-NetFirewallRule</a> to turn that specific rule on rather than assuming a real connectivity problem.</p></div></div>
+            <div class="field-body"><p><strong>-ComputerName vs. -TargetName:</strong> the box-default Windows PowerShell 5.1 uses <code>-ComputerName</code>; PowerShell 7+, a separate install, renamed it to <code>-TargetName</code> as part of a larger rewrite. <code>-ComputerName</code> is the safer one to reach for first, since it's guaranteed to exist on whichever version is actually running — check <code>$PSVersionTable</code> (Track A) if unsure which is in play. cmd.exe's <code>ping</code> still exists too and behaves basically the same. If pinging <em>into</em> a fresh Windows box fails from elsewhere on the network while outbound pings from the box itself work fine, that's expected — Windows Firewall blocks inbound ICMP echo requests by default. See <a href="#cmd-manage-netfirewallrule" class="xref" data-target="cmd-manage-netfirewallrule">Enable-NetFirewallRule</a> to turn that specific rule on rather than assuming a real connectivity problem.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-get-nettcpconnection" class="xref" data-target="cmd-get-nettcpconnection">Get-NetTCPConnection</a></div></div>
+            <div class="field-body"><a href="#cmd-get-nettcpconnection" class="xref" data-target="cmd-get-nettcpconnection">Get-NetTCPConnection</a>, <a href="#cmd-test-netconnection" class="xref" data-target="cmd-test-netconnection">Test-NetConnection</a></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="cmd-test-netconnection">
+        <summary><span class="chev">▶</span><code class="cmdname">Test-NetConnection</code><span class="cmd-desc">— test a specific TCP port, or trace the route to a host</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>A more capable diagnostic tool than <a href="#cmd-test-connection" class="xref" data-target="cmd-test-connection">Test-Connection</a> — beyond ICMP ping, it can confirm whether a specific TCP port is actually open and accepting connections, and can trace the network path to a host.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Confirming a port opened via <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a> is actually reachable end-to-end — not just that the rule exists, but that a connection genuinely succeeds. This is the tool for Track C's "verify" step, not <a href="#cmd-test-connection" class="xref" data-target="cmd-test-connection">Test-Connection</a>, since ping succeeding says nothing about whether a specific service port is open.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">PS&gt;</span> Test-NetConnection -ComputerName &lt;string&gt; -Port &lt;int&gt;
+<span class="p">PS&gt;</span> Test-NetConnection -ComputerName &lt;string&gt; -CommonTCPPort &lt;HTTP|RDP|SMB|WINRM&gt;
+<span class="p">PS&gt;</span> Test-NetConnection -ComputerName &lt;string&gt; -TraceRoute</pre></div>
+          <div class="field"><div class="field-label">Relevant Options</div>
+            <table class="opts">
+              <tr><th>Parameter</th><th>What it does</th></tr>
+              <tr><td>-ComputerName</td><td>The host to test</td></tr>
+              <tr><td>-Port</td><td>Test a specific TCP port number directly</td></tr>
+              <tr><td>-CommonTCPPort</td><td>Shortcut for a well-known service instead of remembering its port — <code>HTTP</code>, <code>RDP</code>, <code>SMB</code>, <code>WINRM</code></td></tr>
+              <tr><td>-TraceRoute</td><td>Show each network hop to the destination, similar to <code>tracert</code></td></tr>
+              <tr><td>-InformationLevel</td><td><code>Quiet</code> for a simple summary, <code>Detailed</code> for full diagnostic output</td></tr>
+            </table></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Confirm HTTPS is actually reachable — not just that the host responds to ping</span>
+<span class="p">PS&gt;</span> Test-NetConnection -ComputerName 192.168.1.50 -Port 443
+
+<span class="c"># Same idea, using the shortcut for a well-known service</span>
+<span class="p">PS&gt;</span> Test-NetConnection -ComputerName 192.168.1.50 -CommonTCPPort RDP
+
+<span class="c"># Trace the path to a host, hop by hop</span>
+<span class="p">PS&gt;</span> Test-NetConnection -ComputerName 8.8.8.8 -TraceRoute
+
+<span class="c"># Full diagnostic detail instead of the default summary</span>
+<span class="p">PS&gt;</span> Test-NetConnection -ComputerName 192.168.1.50 -Port 443 -InformationLevel Detailed</pre></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-test-connection" class="xref" data-target="cmd-test-connection">Test-Connection</a>, <a href="#cmd-get-nettcpconnection" class="xref" data-target="cmd-get-nettcpconnection">Get-NetTCPConnection</a>, <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a></div></div>
         </div>
       </details>
 
@@ -1708,7 +1757,7 @@
 <span class="c"># Established connections, with the process that owns each one</span>
 <span class="p">PS&gt;</span> Get-NetTCPConnection -State Established | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, OwningProcess</pre></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-get-process" class="xref" data-target="cmd-get-process">Get-Process</a></div></div>
+            <div class="field-body"><a href="#cmd-get-process" class="xref" data-target="cmd-get-process">Get-Process</a>, <a href="#cmd-test-netconnection" class="xref" data-target="cmd-test-netconnection">Test-NetConnection</a></div></div>
         </div>
       </details>
 
@@ -1787,8 +1836,56 @@ ftp&gt; quit</pre></div>
 
       <div class="cat"><span class="cat-label">Firewall</span><span class="cat-line"></span></div>
 
-      <details class="cmd" id="cmd-netfirewallrule">
-        <summary><span class="chev">▶</span><code class="cmdname">Get-NetFirewallRule / New-NetFirewallRule / Enable-NetFirewallRule</code><span class="cmd-desc">— view, create, or turn on Windows Firewall rules</span><span class="risk-badge">⚠ risk</span></summary>
+      <details class="cmd" id="cmd-get-netfirewallrule">
+        <summary><span class="chev">▶</span><code class="cmdname">Get-NetFirewallRule</code><span class="cmd-desc">— view existing Windows Firewall rules</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Lists existing Windows Firewall rules — what's currently defined, whether each is Allow or Block, Inbound or Outbound, and whether it's actually enabled. See the <a href="#tool-windows-firewall" class="xref" data-target="tool-windows-firewall">Windows Firewall</a> tool card in Section 2 for how the underlying stateful firewall itself behaves.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Auditing what's actually configured before creating anything new, or narrowing down specifically to what's active during a review.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">PS&gt;</span> Get-NetFirewallRule [-Enabled &lt;True|False&gt;] [-Direction &lt;Inbound|Outbound&gt;] [-Action &lt;Allow|Block&gt;] [-DisplayGroup &lt;string&gt;] [-DisplayName &lt;string&gt;]</pre></div>
+          <div class="field"><div class="field-label">Relevant Options</div>
+            <table class="opts">
+              <tr><th>Parameter</th><th>What it does</th></tr>
+              <tr><td>-Enabled</td><td>Filter to active (<code>True</code>) or inactive (<code>False</code>) rules</td></tr>
+              <tr><td>-Direction</td><td>Filter to Inbound or Outbound rules only</td></tr>
+              <tr><td>-Action</td><td>Filter to Allow or Block rules only</td></tr>
+              <tr><td>-DisplayGroup</td><td>Filter to every rule in a named group — wildcards accepted, e.g. <code>"Network*"</code></td></tr>
+              <tr><td>-DisplayName</td><td>Filter to one specific rule by name — wildcards accepted</td></tr>
+            </table></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># See every current rule</span>
+<span class="p">PS&gt;</span> Get-NetFirewallRule
+
+<span class="c"># Narrow it down to only the rules actually active right now</span>
+<span class="p">PS&gt;</span> Get-NetFirewallRule -Enabled True
+
+<span class="c"># Look up one specific rule directly by name — wildcards work here too</span>
+<span class="p">PS&gt;</span> Get-NetFirewallRule -DisplayName "Allow Inbound SSH 22"
+
+<span class="c"># Just the outbound rules, regardless of anything else</span>
+<span class="p">PS&gt;</span> Get-NetFirewallRule -Direction Outbound
+
+<span class="c"># Just the block rules, regardless of direction or status</span>
+<span class="p">PS&gt;</span> Get-NetFirewallRule -Action Block
+
+<span class="c"># Combine filters — enabled inbound blocks specifically</span>
+<span class="p">PS&gt;</span> Get-NetFirewallRule -Direction Inbound -Action Block -Enabled True
+
+<span class="c"># Every rule in a built-in group, without knowing each rule's exact name</span>
+<span class="p">PS&gt;</span> Get-NetFirewallRule -DisplayGroup "Remote Desktop"</pre></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p><code>-Enabled</code>, <code>-Direction</code>, and <code>-Action</code> filter the list down to exactly what's being looked for, instead of dumping every rule and scrolling — <code>-Enabled False</code> shows disabled rules specifically, useful candidates for a cleanup pass. One easy-to-hit gotcha: <code>-Enabled</code> expects the literal text <code>"True"</code>/<code>"False"</code>, not a PowerShell boolean — <code>-Enabled $true</code> doesn't work the way it looks like it should.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a>, <a href="#cmd-manage-netfirewallrule" class="xref" data-target="cmd-manage-netfirewallrule">Enable- / Disable- / Remove-NetFirewallRule</a></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="cmd-new-netfirewallrule">
+        <summary><span class="chev">▶</span><code class="cmdname">New-NetFirewallRule</code><span class="cmd-desc">— create a Windows Firewall rule</span><span class="risk-badge">⚠ risk</span></summary>
         <div class="cmd-body">
           <div class="verdict verdict-preferred">
             <span class="verdict-icon">✓</span>
@@ -1796,32 +1893,102 @@ ftp&gt; quit</pre></div>
           </div>
           <div class="field" style="margin-top:14px;">
             <div class="field-label">Definition</div>
-            <div class="field-body"><p>Windows Firewall is stateful — it automatically allows return traffic for connections you initiated, so rules only need to cover new inbound and outbound traffic you actually want to allow or block. <code>Get-NetFirewallRule</code> lists existing rules; <code>New-NetFirewallRule</code> creates one from scratch. <code>Enable-NetFirewallRule</code> is a distinct third case worth knowing — many rules already exist out of the box but sit disabled, so turning one on is a different action from creating a new one.</p></div>
+            <div class="field-body"><p>Creates a new inbound or outbound firewall rule from scratch. Windows Firewall is stateful, so this is only ever needed for genuinely new traffic — return traffic on a connection already allowed doesn't need its own rule. See the <a href="#tool-windows-firewall" class="xref" data-target="tool-windows-firewall">Windows Firewall</a> tool card in Section 2 for the full stateful concept.</p></div>
           </div>
           <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
             <div class="field-body"><p>Locking down what's allowed in and out — allow only the ports your actual services need inbound, and allow outbound only to what the box genuinely depends on.</p></div></div>
           <div class="field"><div class="field-label">Syntax</div>
-            <pre class="example"><span class="p">PS&gt;</span> Get-NetFirewallRule
-<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName &lt;string&gt; -Direction &lt;Inbound|Outbound&gt; -Action &lt;Allow|Block&gt; [-LocalPort &lt;int&gt;] [-Program &lt;string&gt;]
-<span class="p">PS&gt;</span> Enable-NetFirewallRule -DisplayName &lt;string&gt;</pre></div>
+            <pre class="example"><span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName &lt;string&gt; -Direction &lt;Inbound|Outbound&gt; -Action &lt;Allow|Block&gt; [-LocalPort &lt;int&gt;] [-Program &lt;string&gt;] [-RemoteAddress &lt;string&gt;] [-Profile &lt;Domain,Private,Public&gt;] [-Group &lt;string&gt;]</pre></div>
+          <div class="field"><div class="field-label">Relevant Options</div>
+            <table class="opts">
+              <tr><th>Parameter</th><th>What it does</th></tr>
+              <tr><td>-Direction</td><td>Inbound or Outbound</td></tr>
+              <tr><td>-Action</td><td>Allow or Block</td></tr>
+              <tr><td>-LocalPort</td><td>Port on this machine the rule applies to</td></tr>
+              <tr><td>-Protocol</td><td>TCP or UDP</td></tr>
+              <tr><td>-Program</td><td>Ties the rule to a specific executable instead of a port</td></tr>
+              <tr><td>-RemoteAddress</td><td>Restricts the rule to a specific source/destination IP or subnet, instead of anywhere</td></tr>
+              <tr><td>-Profile</td><td>Which firewall profile(s) the rule applies to — Domain, Private, Public</td></tr>
+              <tr><td>-Group</td><td>Assigns the rule to a named group, so it can be managed alongside related rules via <code>-DisplayGroup</code></td></tr>
+            </table></div>
           <div class="field"><div class="field-label">Examples</div>
-            <pre class="example"><span class="c"># See every current rule</span>
-<span class="p">PS&gt;</span> Get-NetFirewallRule
-
-<span class="c"># Allow inbound SSH</span>
-<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow SSH" -Direction Inbound -Action Allow -LocalPort 22 -Protocol TCP
+            <pre class="example"><span class="c"># Allow inbound SSH</span>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow Inbound SSH 22" -Direction Inbound -Action Allow -LocalPort 22 -Protocol TCP
 
 <span class="c"># Allow inbound HTTPS — prefer this over a plain HTTP rule where the choice exists</span>
-<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow HTTPS" -Direction Inbound -Action Allow -LocalPort 443 -Protocol TCP
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow Inbound HTTPS 443" -Direction Inbound -Action Allow -LocalPort 443 -Protocol TCP
 
-<span class="c"># Turn on the built-in rule that allows inbound ping — it exists already, just disabled by default</span>
-<span class="p">PS&gt;</span> Enable-NetFirewallRule -DisplayName "File and Printer Sharing (Echo Request - ICMPv4-In)"</pre></div>
-          <div class="field"><div class="field-label">Notes</div>
-            <div class="field-body"><p>Windows blocks inbound ping by default — not because there's no rule for it, but because the built-in rule for it ships disabled. <code>Enable-NetFirewallRule -DisplayGroup "File and Printer Sharing"</code> would also work, but turns on all 14 rules in that group (SMB, NetBIOS, LLMNR included) — far more than ping alone needs. Targeting the exact rule by <code>-DisplayName</code>, as shown above, only opens what was actually asked for.</p></div></div>
-          <div class="field"><div class="field-label caution">Caution</div>
+<span class="c"># Block inbound HTTP specifically — same shape as the Allow rules above, just Block instead</span>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Block Inbound HTTP 80" -Direction Inbound -Action Block -LocalPort 80 -Protocol TCP
+
+<span class="c"># Block outbound traffic on a specific port — same flags as an Allow rule, different Action</span>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Block Outbound TCP 4444" -Direction Outbound -Action Block -LocalPort 4444 -Protocol TCP
+
+<span class="c"># Block a specific binary outright rather than a port — useful against a LOLBAS-style tool</span>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Block Outbound mshta" -Direction Outbound -Action Block -Program "C:\Windows\System32\mshta.exe"
+
+<span class="c"># Scope a rule to a specific source subnet — least-privilege instead of "anyone can reach this"</span>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow Inbound RDP 3389" -Direction Inbound -Action Allow -LocalPort 3389 -Protocol TCP -RemoteAddress 10.0.0.0/24
+
+<span class="c"># Scope a rule to the Domain profile only, not Private/Public</span>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow Inbound SQL 1433" -Direction Inbound -Action Allow -LocalPort 1433 -Protocol TCP -Profile Domain
+
+<span class="c"># Assign a rule to a named group for later bulk management</span>
+<span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow Inbound WebApp 8080" -Direction Inbound -Action Allow -LocalPort 8080 -Protocol TCP -Group "WebApp Rules"</pre></div>
+          <div class="field-label" style="margin-top:10px;">Naming convention — structure every DisplayName the same way</div>
+          <table class="opts">
+            <tr><th>Position</th><th>Value</th></tr>
+            <tr><td>1st</td><td>Allow or Block</td></tr>
+            <tr><td>2nd</td><td>Inbound or Outbound</td></tr>
+            <tr><td>3rd</td><td>Port number, service name, or program name</td></tr>
+          </table>
+          <div class="field-body" style="margin-top:8px;"><p>Result: <code>Allow Inbound HTTPS 443</code>, <code>Block Outbound mshta</code> — every example above follows it. Consistent structure is what makes <a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">Get-NetFirewallRule</a>'s output scannable at a glance instead of a wall of one-off names, and it's also what keeps <code>-DisplayName</code> — which isn't actually guaranteed unique — from accidentally colliding between two unrelated rules.</p></div>
+          <div class="field" style="margin-top:14px;"><div class="field-label caution">Caution</div>
             <div class="field-body"><p>A rule that's broader than intended — wrong direction, wrong port, or allowing a whole program instead of a specific port — can open exposure you didn't mean to create. Review the exact scope before applying.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-netsh-advfirewall" class="xref" data-target="cmd-netsh-advfirewall">netsh advfirewall</a></div></div>
+            <div class="field-body"><a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">Get-NetFirewallRule</a>, <a href="#cmd-manage-netfirewallrule" class="xref" data-target="cmd-manage-netfirewallrule">Enable- / Disable- / Remove-NetFirewallRule</a>, <a href="#cmd-netsh-advfirewall" class="xref" data-target="cmd-netsh-advfirewall">netsh advfirewall</a>, <a href="#cmd-test-netconnection" class="xref" data-target="cmd-test-netconnection">Test-NetConnection</a></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="cmd-manage-netfirewallrule">
+        <summary><span class="chev">▶</span><code class="cmdname">Enable-NetFirewallRule / Disable-NetFirewallRule / Remove-NetFirewallRule</code><span class="cmd-desc">— turn an existing rule on/off, or delete it permanently</span><span class="risk-badge">⚠ risk</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Three ways to act on a rule that already exists, distinct from creating a new one with <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a>. <code>Enable-</code>/<code>Disable-NetFirewallRule</code> toggle a rule's active state without deleting it — it's still there, just inactive, and can be flipped back on later. <code>Remove-NetFirewallRule</code> is different from both — it deletes a rule permanently.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Turning on a built-in rule that ships disabled (like the ICMP echo request rule), temporarily turning off a rule that might still be needed later, or removing one for good during cleanup.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">PS&gt;</span> Enable-NetFirewallRule [-DisplayName &lt;string&gt;] [-DisplayGroup &lt;string&gt;] [-Direction &lt;Inbound|Outbound&gt;] [-Action &lt;Allow|Block&gt;]
+<span class="p">PS&gt;</span> Disable-NetFirewallRule [-DisplayName &lt;string&gt;] [-DisplayGroup &lt;string&gt;] [-Direction &lt;Inbound|Outbound&gt;] [-Action &lt;Allow|Block&gt;]
+<span class="p">PS&gt;</span> Remove-NetFirewallRule [-DisplayName &lt;string&gt;] [-DisplayGroup &lt;string&gt;] [-Direction &lt;Inbound|Outbound&gt;] [-Action &lt;Allow|Block&gt;]</pre></div>
+          <div class="field"><div class="field-label">Relevant Options</div>
+            <table class="opts">
+              <tr><th>Parameter</th><th>What it does</th></tr>
+              <tr><td>-DisplayName</td><td>Target one specific rule by exact name — the precise, narrow option</td></tr>
+              <tr><td>-DisplayGroup</td><td>Target every rule in a named group at once</td></tr>
+              <tr><td>-Direction</td><td>Target every rule matching a direction, regardless of name — no name needed at all</td></tr>
+              <tr><td>-Action</td><td>Target every rule matching an action, regardless of name</td></tr>
+            </table></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Turn on the built-in rule that allows inbound ping — it exists already, just disabled by default</span>
+<span class="p">PS&gt;</span> Enable-NetFirewallRule -DisplayName "File and Printer Sharing (Echo Request - ICMPv4-In)"
+
+<span class="c"># Turn a rule off without deleting it — can be re-enabled later if it turns out to be needed</span>
+<span class="p">PS&gt;</span> Disable-NetFirewallRule -DisplayName "Allow Inbound SSH 22"
+
+<span class="c"># Delete a rule permanently, rather than just switching it off</span>
+<span class="p">PS&gt;</span> Remove-NetFirewallRule -DisplayName "Allow Inbound SSH 22"
+
+<span class="c"># No name at all — targets every outbound rule that matches, all at once</span>
+<span class="p">PS&gt;</span> Disable-NetFirewallRule -Direction Outbound</pre></div>
+          <div class="field"><div class="field-label">Notes</div>
+            <div class="field-body"><p>Windows blocks inbound ping by default — not because there's no rule for it, but because the built-in rule for it ships disabled. <code>Enable-NetFirewallRule -DisplayGroup "File and Printer Sharing"</code> would also work, but turns on all 14 rules in that group (SMB, NetBIOS, LLMNR included) — far more than ping alone needs. Targeting the exact rule by <code>-DisplayName</code>, as shown above, only opens what was actually asked for. The RDP card's block example is the opposite case — <code>Disable-NetFirewallRule -DisplayGroup "Remote Desktop"</code> is correct there, since every rule in that group genuinely is RDP-related.</p></div></div>
+          <div class="field"><div class="field-label caution">Caution</div>
+            <div class="field-body"><p><strong>Running <code>Remove-NetFirewallRule</code> with no parameters at all deletes every local firewall rule on the box.</strong> The same risk exists in a milder form with <code>-Direction</code> or <code>-Action</code> alone — those target <em>every</em> matching rule with no name involved at all, so a typo'd or overly broad filter can disable or delete far more than intended. Always target as narrowly as the situation allows, and consider adding <code>-WhatIf</code> first to confirm exactly what would be affected before it actually runs. Also worth remembering — see <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a>'s Notes — <code>-DisplayName</code> is not guaranteed unique, so targeting by a vague or duplicated name here can act on more than one rule at once.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">Get-NetFirewallRule</a>, <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a>, <a href="#cmd-rdp" class="xref" data-target="cmd-rdp">Remote Desktop (RDP)</a></div></div>
         </div>
       </details>
 
@@ -1830,7 +1997,7 @@ ftp&gt; quit</pre></div>
         <div class="cmd-body">
           <div class="verdict verdict-alternative">
             <span class="verdict-icon">→</span>
-            <div><span class="verdict-label">Legacy — prefer PowerShell</span>Same underlying firewall as <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule / Enable-NetFirewallRule</a>, older command shape. Consistent across Windows versions and can be faster to type once you know the shorthand.</div>
+            <div><span class="verdict-label">Legacy — prefer PowerShell</span>Same underlying firewall as <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a> and its companion cards, older command shape. Consistent across Windows versions and can be faster to type once you know the shorthand.</div>
           </div>
           <div class="field" style="margin-top:14px;">
             <div class="field-label">Definition</div>
@@ -1838,7 +2005,7 @@ ftp&gt; quit</pre></div>
           </div>
           <div class="field"><div class="field-label">Syntax</div>
             <pre class="example"><span class="p">C:\&gt;</span> netsh advfirewall firewall show rule name=all
-<span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name=&lt;string&gt; dir=&lt;in|out&gt; action=&lt;allow|deny&gt; protocol=&lt;tcp|udp&gt; localport=&lt;port&gt;</pre></div>
+<span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name=&lt;string&gt; dir=&lt;in|out&gt; action=&lt;allow|deny&gt; [protocol=&lt;tcp|udp&gt; localport=&lt;port&gt;] [program=&lt;path&gt;]</pre></div>
           <div class="field"><div class="field-label">Examples</div>
             <pre class="example"><span class="c"># See every current rule</span>
 <span class="p">C:\&gt;</span> netsh advfirewall firewall show rule name=all
@@ -1849,12 +2016,49 @@ ftp&gt; quit</pre></div>
 <span class="c"># Allow inbound HTTPS — prefer this over a plain HTTP rule where the choice exists</span>
 <span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name="https" dir=in action=allow protocol=tcp localport=443
 
+<span class="c"># Block inbound HTTP specifically — same shape as the allow rules above, just deny instead</span>
+<span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name="block-http" dir=in action=block protocol=tcp localport=80
+
 <span class="c"># Turn on the built-in ping rule — "set", not "add", since the rule already exists</span>
-<span class="p">C:\&gt;</span> netsh advfirewall firewall set rule name="File and Printer Sharing (Echo Request - ICMPv4-In)" new enable=yes</pre></div>
+<span class="p">C:\&gt;</span> netsh advfirewall firewall set rule name="File and Printer Sharing (Echo Request - ICMPv4-In)" new enable=yes
+
+<span class="c"># Block outbound traffic on a specific port — netsh says "deny" where PowerShell says "Block"</span>
+<span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name="block-4444" dir=out action=block protocol=tcp localport=4444
+
+<span class="c"># Block a specific binary outright rather than a port</span>
+<span class="p">C:\&gt;</span> netsh advfirewall firewall add rule name="block-mshta" dir=out action=block program="C:\Windows\System32\mshta.exe"</pre></div>
           <div class="field"><div class="field-label caution">Caution</div>
             <div class="field-body"><p>Same risk as the PowerShell cmdlets — an overly broad rule creates exposure. Review scope before applying.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule</a></div></div>
+            <div class="field-body"><a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">Get-NetFirewallRule</a>, <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a>, <a href="#cmd-manage-netfirewallrule" class="xref" data-target="cmd-manage-netfirewallrule">Enable- / Disable- / Remove-NetFirewallRule</a>, <a href="#cmd-netfirewallprofile" class="xref" data-target="cmd-netfirewallprofile">Get-NetFirewallProfile / Set-NetFirewallProfile</a></div></div>
+        </div>
+      </details>
+
+      <details class="cmd" id="cmd-netfirewallprofile">
+        <summary><span class="chev">▶</span><code class="cmdname">Get-NetFirewallProfile / Set-NetFirewallProfile</code><span class="cmd-desc">— view or set the firewall's default allow/deny posture</span><span class="risk-badge">⚠ risk</span></summary>
+        <div class="cmd-body">
+          <div class="field" style="margin-top:10px;">
+            <div class="field-label">Definition</div>
+            <div class="field-body"><p>Controls the profile-level defaults — what happens to traffic that doesn't match any specific rule. This is the actual implicit-deny switch: <code>Get-NetFirewallProfile</code> shows the current <code>DefaultInboundAction</code>/<code>DefaultOutboundAction</code>, <code>Set-NetFirewallProfile</code> changes them.</p></div>
+          </div>
+          <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
+            <div class="field-body"><p>Enforcing implicit deny explicitly rather than assuming it's already configured correctly — confirm inbound defaults to <code>Block</code> and outbound defaults to <code>Allow</code> (so the box can still reach the internet), then set it if it isn't already that way.</p></div></div>
+          <div class="field"><div class="field-label">Syntax</div>
+            <pre class="example"><span class="p">PS&gt;</span> Get-NetFirewallProfile
+<span class="p">PS&gt;</span> Set-NetFirewallProfile -Profile &lt;Domain,Public,Private&gt; -DefaultInboundAction &lt;Allow|Block&gt; -DefaultOutboundAction &lt;Allow|Block&gt;</pre></div>
+          <div class="field"><div class="field-label">Examples</div>
+            <pre class="example"><span class="c"># Check current defaults across every profile</span>
+<span class="p">PS&gt;</span> Get-NetFirewallProfile | Select-Object Name, DefaultInboundAction, DefaultOutboundAction
+
+<span class="c"># Check just the one profile actually active right now (see Get-NetConnectionProfile, Track C)</span>
+<span class="p">PS&gt;</span> Get-NetFirewallProfile -Name Domain | Select-Object DefaultInboundAction, DefaultOutboundAction
+
+<span class="c"># Enforce implicit deny inbound, while keeping outbound (internet access) allowed</span>
+<span class="p">PS&gt;</span> Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow</pre></div>
+          <div class="field"><div class="field-label caution">Caution</div>
+            <div class="field-body"><p>Setting <code>DefaultOutboundAction</code> to <code>Block</code> instead of <code>Allow</code> can cut the box off from the internet — and if managing it remotely, potentially from the very session being used to make the change. Confirm which default is actually required before applying; don't guess between <code>Allow</code>/<code>Block</code> on outbound.</p></div></div>
+          <div class="field xref-wrap"><div class="field-label">See Also</div>
+            <div class="field-body"><a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">Get-NetFirewallRule</a>, <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a></div></div>
         </div>
       </details>
 
@@ -1963,13 +2167,16 @@ ftp&gt; quit</pre></div>
 <span class="p">PS&gt;</span> Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections
 
 <span class="c"># Is the firewall actually letting the traffic through too?</span>
-<span class="p">PS&gt;</span> Get-NetFirewallRule -DisplayGroup "Remote Desktop" | Select-Object DisplayName, Enabled</pre></div>
+<span class="p">PS&gt;</span> Get-NetFirewallRule -DisplayGroup "Remote Desktop" | Select-Object DisplayName, Enabled
+
+<span class="c"># Block RDP at the firewall — satisfies "RDP is blocked" without touching the registry setting</span>
+<span class="p">PS&gt;</span> Disable-NetFirewallRule -DisplayGroup "Remote Desktop"</pre></div>
           <div class="field"><div class="field-label caution">Caution</div>
             <div class="field-body"><p>Enabling RDP expands what can reach this box remotely, same as <a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a> — is it actually needed, and who should be able to reach it, are worth asking before turning it on rather than after.</p></div></div>
           <div class="field"><div class="field-label">Notes</div>
-            <div class="field-body"><p><strong>Port:</strong> TCP 3389. Enabling RDP itself uses the same <code>fDenyTSConnections</code> registry value already shown as an example under <a href="#cmd-set-itemproperty" class="xref" data-target="cmd-set-itemproperty">Set-ItemProperty</a> — set it to <code>0</code> to allow, <code>1</code> to block. This card covers the CLI-checkable side of RDP: status, the OS-level toggle, and the firewall rule. <strong>GUI-preferred:</strong> once connected, RDP itself is an inherently graphical remote session with no CLI equivalent. Session use, IIS Manager, Server Manager, and similar GUI-driven tools are deliberately out of scope for this CLI-only doc — candidates for a future GUI-focused companion guide.</p></div></div>
+            <div class="field-body"><p><strong>Port:</strong> TCP 3389. Enabling RDP itself uses the same <code>fDenyTSConnections</code> registry value already shown as an example under <a href="#cmd-set-itemproperty" class="xref" data-target="cmd-set-itemproperty">Set-ItemProperty</a> — set it to <code>0</code> to allow, <code>1</code> to block. This card covers the CLI-checkable side of RDP: status, the OS-level toggle, and the firewall rule. Unlike the narrower ICMP case in <a href="#cmd-manage-netfirewallrule" class="xref" data-target="cmd-manage-netfirewallrule">Enable- / Disable- / Remove-NetFirewallRule</a>, targeting the whole <code>-DisplayGroup "Remote Desktop"</code> here is actually correct — every rule in that group genuinely is RDP-related, so disabling the group is exactly the right scope, not an overreach. <strong>GUI-preferred:</strong> once connected, RDP itself is an inherently graphical remote session with no CLI equivalent. Session use, IIS Manager, Server Manager, and similar GUI-driven tools are deliberately out of scope for this CLI-only doc — candidates for a future GUI-focused companion guide.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a>, <a href="#cmd-set-itemproperty" class="xref" data-target="cmd-set-itemproperty">Set-ItemProperty</a>, <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule</a></div></div>
+            <div class="field-body"><a href="#cmd-enable-psremoting" class="xref" data-target="cmd-enable-psremoting">Enable-PSRemoting</a>, <a href="#cmd-set-itemproperty" class="xref" data-target="cmd-set-itemproperty">Set-ItemProperty</a>, <a href="#cmd-manage-netfirewallrule" class="xref" data-target="cmd-manage-netfirewallrule">Enable- / Disable- / Remove-NetFirewallRule</a></div></div>
         </div>
       </details>
 
@@ -2455,14 +2662,14 @@ SHOW GRANTS FOR 'webapp'@'localhost';</pre></div>
         <div class="cmd-body">
           <div class="field" style="margin-top:10px;">
             <div class="field-label">Definition</div>
-            <div class="field-body"><p>Windows' built-in host-based firewall. It's stateful — once outbound traffic is allowed, the matching return traffic is automatically let back in without needing a separate rule for it. Rule creation and viewing itself is covered in Section 1 under <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule</a> and <a href="#cmd-netsh-advfirewall" class="xref" data-target="cmd-netsh-advfirewall">netsh advfirewall</a>.</p></div>
+            <div class="field-body"><p>Windows' built-in host-based firewall. It's stateful — once outbound traffic is allowed, the matching return traffic is automatically let back in without needing a separate rule for it. Rule viewing is covered in Section 1 under <a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">Get-NetFirewallRule</a>, rule creation under <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a>, and <a href="#cmd-netsh-advfirewall" class="xref" data-target="cmd-netsh-advfirewall">netsh advfirewall</a> covers the same ground from cmd.exe.</p></div>
           </div>
           <div class="field"><div class="field-label">Use Case (Cyber Defense context)</div>
             <div class="field-body"><p>Understanding "stateful" changes how rules get written — you only need to explicitly cover new inbound and outbound traffic, not the responses to connections you already allowed. It also explains why traffic can pass that a rule review didn't seem to permit: it's often just the return half of something already allowed.</p></div></div>
           <div class="field"><div class="field-label">Notes</div>
             <div class="field-body"><p>Rules apply per network profile — Domain, Private, or Public — based on what kind of network Windows thinks the adapter is connected to. A rule that works at home (Private) may not apply once a machine is domain-joined and switches to the Domain profile, and vice versa.</p></div></div>
           <div class="field xref-wrap"><div class="field-label">See Also</div>
-            <div class="field-body"><a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule</a></div></div>
+            <div class="field-body"><a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">Get-NetFirewallRule</a>, <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a></div></div>
         </div>
       </details>
 
@@ -2531,7 +2738,7 @@ SHOW GRANTS FOR 'webapp'@'localhost';</pre></div>
             </div>
             <div class="issue">
               <div class="issue-symptom">What port the site is actually running on</div>
-              <div class="issue-row"><span class="issue-label">Risk</span>Confirm it matches an intentional <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">firewall rule</a>, not just whatever the default happened to be — an unscoped or forgotten rule is exposure nobody meant to create.</div>
+              <div class="issue-row"><span class="issue-label">Risk</span>Confirm it matches an intentional <a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">firewall rule</a>, not just whatever the default happened to be — an unscoped or forgotten rule is exposure nobody meant to create.</div>
             </div>
           </div>
           <div class="field"><div class="field-label">Notes</div>
@@ -2764,7 +2971,7 @@ SHOW GRANTS FOR 'webapp'@'localhost';</pre></div>
           <span class="track-sub">changes the system</span>
         </summary>
         <div class="track-body">
-          <div class="track-intro">Building or changing Windows Firewall rules — moves past just seeing what's already there. See <a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">Get-NetFirewallRule / New-NetFirewallRule</a> and <a href="#tool-windows-firewall" class="xref" data-target="tool-windows-firewall">Windows Firewall</a> for the full reference.</div>
+          <div class="track-intro">Building or changing Windows Firewall rules — moves past just seeing what's already there. See <a href="#cmd-get-netfirewallrule" class="xref" data-target="cmd-get-netfirewallrule">Get-NetFirewallRule</a>, <a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a>, <a href="#cmd-manage-netfirewallrule" class="xref" data-target="cmd-manage-netfirewallrule">Enable- / Disable- / Remove-NetFirewallRule</a>, and <a href="#tool-windows-firewall" class="xref" data-target="tool-windows-firewall">Windows Firewall</a> for the full reference.</div>
           <ol class="checklist">
             <li>
               <div class="step-title">Define what actually needs to be reachable — and just as important, what doesn't</div>
@@ -2794,14 +3001,16 @@ SHOW GRANTS FOR 'webapp'@'localhost';</pre></div>
 <span class="p">PS&gt;</span> New-NetFirewallRule -DisplayName "Allow HTTP" -Direction Inbound -Action Allow -LocalPort 80 -Protocol TCP</pre>
             </li>
             <li>
-              <div class="step-title">Confirm the default inbound action is still Block</div>
-              <div class="step-body">Unlike a Linux firewall, Windows Firewall ships with an implicit default-deny on inbound traffic per profile — there's no separate step to set it up. This step is only about confirming it hasn't been changed to Allow.</div>
+              <div class="step-title">Confirm implicit deny inbound, and that outbound (internet access) is still allowed</div>
+              <div class="step-body">Unlike a Linux firewall, Windows Firewall ships with an implicit default-deny on inbound traffic per profile — there's no separate step to set it up from scratch, just confirm it hasn't been changed and fix it if it has. See <a href="#cmd-netfirewallprofile" class="xref" data-target="cmd-netfirewallprofile">Get-NetFirewallProfile / Set-NetFirewallProfile</a> for the full reference.</div>
               <pre class="example"><span class="p">PS&gt;</span> Get-NetFirewallProfile | Select-Object Name, DefaultInboundAction, DefaultOutboundAction</pre>
-              <div class="step-body"><strong>What to look for:</strong> <code>DefaultInboundAction</code> should read <code>Block</code> for every profile in use. If it reads <code>Allow</code>, that's a serious misconfiguration — anything not explicitly blocked is getting through.</div>
+              <div class="step-body"><strong>What to look for:</strong> <code>DefaultInboundAction</code> should read <code>Block</code> for every profile in use — if it reads <code>Allow</code>, that's a serious misconfiguration, since anything not explicitly blocked is getting through. <code>DefaultOutboundAction</code> should read <code>Allow</code> — this is what actually keeps the box able to reach the internet at all; if either default is wrong, fix it directly rather than hunting for the specific rule that changed it:</div>
+              <pre class="example"><span class="p">PS&gt;</span> Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Block -DefaultOutboundAction Allow</pre>
             </li>
             <li>
               <div class="step-title">Verify from a second session before closing your current one</div>
-              <div class="step-body">If managing this box remotely via RDP or PS Remoting, open a second connection attempt to confirm access still works before closing the session you're currently working in.</div>
+              <div class="step-body">If managing this box remotely via RDP or PS Remoting, open a second connection attempt to confirm access still works before closing the session you're currently working in. For any newly-opened port specifically, confirm the port itself actually answers with <a href="#cmd-test-netconnection" class="xref" data-target="cmd-test-netconnection">Test-NetConnection</a> — a rule existing isn't the same as a connection succeeding.</div>
+              <pre class="example"><span class="p">PS&gt;</span> Test-NetConnection -ComputerName localhost -Port 443</pre>
             </li>
             <li>
               <div class="step-title">Document exactly what's open and why</div>
@@ -2846,10 +3055,10 @@ SHOW GRANTS FOR 'webapp'@'localhost';</pre></div>
               <div class="step-title">Test connectivity end-to-end</div>
               <div class="step-body">Reach the gateway first, then something beyond it, then confirm DNS-based resolution specifically works too — not just raw IP reachability.</div>
               <pre class="example"><span class="c"># Can we reach the gateway?</span>
-<span class="p">PS&gt;</span> Test-Connection -TargetName 192.168.1.1 -Count 3
+<span class="p">PS&gt;</span> Test-Connection -ComputerName 192.168.1.1 -Count 3
 
 <span class="c"># Can we reach something beyond the local subnet?</span>
-<span class="p">PS&gt;</span> Test-Connection -TargetName 8.8.8.8 -Count 3
+<span class="p">PS&gt;</span> Test-Connection -ComputerName 8.8.8.8 -Count 3
 
 <span class="c"># Does name resolution actually work, not just raw IP reachability?</span>
 <span class="p">PS&gt;</span> Resolve-DnsName -Name example.com</pre>
@@ -3092,7 +3301,7 @@ GRANT SELECT, INSERT, UPDATE ON &lt;dbname&gt;.* TO 'webapp'@'localhost';</pre>
                 </div>
 
                 <div class="issue">
-                  <div class="issue-symptom"><a href="#cmd-netfirewallrule" class="xref" data-target="cmd-netfirewallrule">New-NetFirewallRule</a> ran with no error, but the traffic still isn't getting through</div>
+                  <div class="issue-symptom"><a href="#cmd-new-netfirewallrule" class="xref" data-target="cmd-new-netfirewallrule">New-NetFirewallRule</a> ran with no error, but the traffic still isn't getting through</div>
                   <div class="issue-row"><span class="issue-label">Cause</span>Profile mismatch — the rule was scoped to one firewall profile while the adapter's actually active profile is a different one</div>
                   <div class="issue-row"><span class="issue-label">Fix</span>Check <code>Get-NetConnectionProfile</code> (Track C) and either recreate the rule against the correct profile, or add <code>-Profile Any</code></div>
                 </div>
